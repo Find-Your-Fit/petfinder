@@ -1,0 +1,5 @@
+*.zip
+*.jpg
+weights
+dataset
+__pycache__
