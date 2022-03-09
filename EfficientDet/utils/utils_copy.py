@@ -34,6 +34,8 @@ def invert_affine(metas: Union[float, list, tuple], preds):
 
 def aspectaware_resize_padding(image, width, height, interpolation=None, means=None):
     old_h, old_w, c = image.shape
+
+    
     if old_w > old_h:
         new_w = width
         new_h = int(width / old_w * old_h)
@@ -66,11 +68,21 @@ def aspectaware_resize_padding(image, width, height, interpolation=None, means=N
 
 
 
-def preprocess(image_path, img_folder = "",max_size=512, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+# def preprocess(image_path,START_IDX,END_IDX,img_folder = "",max_size=512, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+def preprocess(image,max_size=512, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+    # max_size=512
     
-    ori_imgs = [cv2.imread(img_folder+img_path) for img_path in tqdm.tqdm(image_path)]
+    # for image in tqdm.tqdm(image_path):
+        # ori_imgs.append(cv2.imread(img_folder+image_path[idx]))
+        
+        
 
-    normalized_imgs = [cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX) for img in tqdm.tqdm(ori_imgs)]
+    # ori_imgs = [cv2.imread(img_folder+img_path) for img_path in tqdm.tqdm(image_path)]
+    # ori_imgs = ori_imgs[START_IDX:END_IDX]
+
+    ori_imgs = image
+
+    normalized_imgs = [cv2.normalize(ori_imgs, None, 0, 255, cv2.NORM_MINMAX)]
 
     # normalized_imgs = [(img[..., ::-1] / 255 - mean) / std for img in ori_imgs]
     imgs_meta = [aspectaware_resize_padding(img, max_size, max_size,
