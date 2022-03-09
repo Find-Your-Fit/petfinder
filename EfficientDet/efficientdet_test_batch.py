@@ -5,6 +5,22 @@ Simple Inference Script of EfficientDet-Pytorch
 """
 
 # RuntimeError: cuDNN error: CUDNN_STATUS_ALLOC_FAILED
+# PYTORCH_CUDA_ALLOC_CONF
+
+# solution
+# model.to(device)
+# batch size 1000 to 32
+
+# RuntimeError: CUDA out of memory. Tried to allocate 1.17 GiB (GPU 0; 8.00 GiB total capacity; 3.44 GiB already allocated; 1.14 GiB free; 4.86 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+
+# solution
+
+# batch size 32 -> 2
+# input data -> cpu()
+# del input data
+# gc.collect()
+# torch.cuda.empty_cache()
+
 import time
 import torch
 from torch.backends import cudnn
@@ -17,6 +33,7 @@ import os
 import pandas as pd
 import tqdm
 import csv 
+import gc
 
 from efficientdet.utils import BBoxTransform, ClipBoxes
 from utils.utils import preprocess, invert_affine, postprocess, STANDARD_COLORS, standard_to_bgr, get_index_label, plot_one_box
@@ -63,53 +80,18 @@ color_list = standard_to_bgr(STANDARD_COLORS)
 input_sizes = [512, 640, 768, 896, 1024, 1280, 1280, 1536, 1536]
 input_size = input_sizes[compound_coef] if force_input_size is None else force_input_size
 
-BATCH_SIZE = 4
-for START in range(0,9912,BATCH_SIZE):
-    # import gc
-    # gc.collect()
-    # torch.cuda.empty_cache()
-    print("batch start")
-    print(START,"/", int(9912/BATCH_SIZE))
-    END = START+BATCH_SIZE
-    if END > 9913:
-        END = 9913
-    
-        
-    framed_imgs, framed_metas = preprocess(img_path,START,END,"dataset/train/", max_size=input_size)
+BATCH_SIZE = 2
 
-    if use_cuda:
-        x = torch.stack([torch.from_numpy(fi).cuda() for fi in framed_imgs], 0)
-    else:
-        x = torch.stack([torch.from_numpy(fi) for fi in framed_imgs], 0)
+model = EfficientDetBackbone(compound_coef=compound_coef, num_classes=len(obj_list),
+                            ratios=anchor_ratios, scales=anchor_scales)
+model.load_state_dict(torch.load(f'weights/efficientdet-d{compound_coef}.pth', map_location=device))
+model.requires_grad_(False)
+model.eval()
 
-    x = x.to(torch.float32 if not use_float16 else torch.float16).permute(0, 3, 1, 2)
-
-    model = EfficientDetBackbone(compound_coef=compound_coef, num_classes=len(obj_list),
-                                ratios=anchor_ratios, scales=anchor_scales)
-    model.load_state_dict(torch.load(f'weights/efficientdet-d{compound_coef}.pth', map_location=device))
-    model.requires_grad_(False)
-    model.eval()
-
-    if use_cuda:
-        model = model.cuda()
-    if use_float16:
-        model = model.half()
-
-    with torch.no_grad():
-        features, regression, classification, anchors = model(x)
-
-        regressBoxes = BBoxTransform()
-        clipBoxes = ClipBoxes()
-
-        out = postprocess(x,
-                        anchors, regression, classification,
-                        regressBoxes, clipBoxes,
-                        threshold, iou_threshold)
-
-    def display(preds, imshow=True, imwrite=False): #imgs
+def display(preds, imshow=True, imwrite=False): #imgs
 
         col_class, col_points = [], []
-        for i in tqdm.tqdm(range(len(preds))):
+        for i in range(len(preds)):
             if len(preds[i]['rois']) == 0:
                 continue
             
@@ -118,7 +100,7 @@ for START in range(0,9912,BATCH_SIZE):
             # imgs[i] = imgs[i].copy()
 
             for j in range(len(preds[i]['rois'])):
-                x1, y1, x2, y2 = preds[i]['rois'][j].astype(np.int)
+                x1, y1, x2, y2 = preds[i]['rois'][j].astype(np.int64)
                 obj = obj_list[preds[i]['class_ids'][j]]
                 score = float(preds[i]['scores'][j])
                 # plot_one_box(imgs[i], [x1, y1, x2, y2], label=obj,score=score,color=color_list[get_index_label(obj, obj_list)])
@@ -140,6 +122,59 @@ for START in range(0,9912,BATCH_SIZE):
 
         return col_points,col_class
 
+
+model = model.to(device)
+# if use_cuda:
+#     model = model.cuda()
+# if use_float16:
+#     model = model.half()
+
+for START in tqdm.tqdm(range(0,9912,BATCH_SIZE)):
+    # print()
+    
+    gc.collect()
+    torch.cuda.empty_cache()
+    
+    # print("batch start")
+    # print(START,"/", int(9912/BATCH_SIZE))
+    END = START+BATCH_SIZE
+    if END > 9913:
+        END = 9913
+    
+        
+    framed_imgs, framed_metas = preprocess(img_path,START,END,"dataset/train/", max_size=input_size)
+
+    if use_cuda:
+        x = torch.stack([torch.from_numpy(fi).cuda() for fi in framed_imgs], 0)
+    else:
+        x = torch.stack([torch.from_numpy(fi) for fi in framed_imgs], 0)
+
+    x = x.to(torch.float32 if not use_float16 else torch.float16).permute(0, 3, 1, 2)
+
+    # model = EfficientDetBackbone(compound_coef=compound_coef, num_classes=len(obj_list),
+    #                             ratios=anchor_ratios, scales=anchor_scales)
+    # model.load_state_dict(torch.load(f'weights/efficientdet-d{compound_coef}.pth', map_location=device))
+    # model.requires_grad_(False)
+    # model.eval()
+
+    # if use_cuda:
+    #     model = model.cuda()
+    # if use_float16:
+    #     model = model.half()
+
+    with torch.no_grad():
+        features, regression, classification, anchors = model(x)
+
+        regressBoxes = BBoxTransform()
+        clipBoxes = ClipBoxes()
+
+        out = postprocess(x.cpu().numpy(),
+                        anchors, regression, classification,
+                        regressBoxes, clipBoxes,
+                        threshold, iou_threshold)
+
+    
+
     out = invert_affine(framed_metas, out)
 
     series_points, series_class = display(out, imshow=False, imwrite=False) #ori_imgs
@@ -155,8 +190,10 @@ for START in range(0,9912,BATCH_SIZE):
     with open(f"dataset/classes.csv", 'w') as file: 
         writer = csv.writer(file) 
         writer.writerow(series_class)
-    print(START,END)
-    print("batch END")
+
+    del x
+    # print(START,END)
+    # print("batch END")
 
 train_csv = pd.read_csv("dataset/train.csv")
 train_csv["box"] = pd.Series(series_points)

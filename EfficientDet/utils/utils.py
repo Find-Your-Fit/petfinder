@@ -68,12 +68,13 @@ def aspectaware_resize_padding(image, width, height, interpolation=None, means=N
 
 def preprocess(image_path, START,END,img_folder = "",max_size=512, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
     
-    print("Image Roading")
+    # print("Image Roading")
     # ori_imgs = [cv2.imread(img_folder+img_path) for img_path in tqdm.tqdm(image_path)]
     # print("Image normalizing")
     framed_imgs, framed_metas = [], []
     # try1 : 0 ~ 2999
-    for img_path in tqdm.tqdm(image_path[START:END]):
+    # for img_path in tqdm.tqdm(image_path[START:END]):
+    for img_path in image_path[START:END]:
         img_meta= aspectaware_resize_padding(cv2.normalize(cv2.imread(img_folder+img_path), None, 0, 255, cv2.NORM_MINMAX), max_size, max_size,means=None)
         framed_imgs.append(img_meta[0])
         framed_metas.append(img_meta[1:])
