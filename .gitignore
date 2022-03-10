@@ -1,0 +1,6 @@
+*.zip
+*.jpg
+weights
+dataset
+__pycache__
+EfficientDet/dataset
