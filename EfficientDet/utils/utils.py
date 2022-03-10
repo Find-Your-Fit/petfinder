@@ -72,10 +72,12 @@ def preprocess(image_path, START,END,img_folder = "",max_size=512, mean=(0.485, 
     # ori_imgs = [cv2.imread(img_folder+img_path) for img_path in tqdm.tqdm(image_path)]
     # print("Image normalizing")
     framed_imgs, framed_metas = [], []
+    img_ids = []
     # try1 : 0 ~ 2999
     # for img_path in tqdm.tqdm(image_path[START:END]):
     for img_path in image_path[START:END]:
         img_meta= aspectaware_resize_padding(cv2.normalize(cv2.imread(img_folder+img_path), None, 0, 255, cv2.NORM_MINMAX), max_size, max_size,means=None)
+        img_ids.append(img_path)
         framed_imgs.append(img_meta[0])
         framed_metas.append(img_meta[1:])
     # imgs_meta = [aspectaware_resize_padding(cv2.normalize(cv2.imread(img_folder+img_path), None, 0, 255, cv2.NORM_MINMAX), max_size, max_size,means=None) for img_path in tqdm.tqdm(image_path)]
@@ -92,7 +94,7 @@ def preprocess(image_path, START,END,img_folder = "",max_size=512, mean=(0.485, 
     # framed_imgs = [img_meta[0] for img_meta in imgs_meta]
     # framed_metas = [img_meta[1:] for img_meta in imgs_meta]
     
-    return framed_imgs, framed_metas # ori_imgs
+    return framed_imgs, framed_metas, img_ids # ori_imgs
 
 
 def preprocess_video(*frame_from_video, max_size=512, mean=(0.406, 0.456, 0.485), std=(0.225, 0.224, 0.229)):
