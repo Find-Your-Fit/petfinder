@@ -3,4 +3,12 @@
 weights
 dataset
 __pycache__
+
 EfficientDet/dataset
+*/dataset
+
+
+
+.vscode
+.github
+.git
